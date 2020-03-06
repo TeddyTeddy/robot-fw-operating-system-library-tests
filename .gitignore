@@ -1,0 +1,5 @@
+venv/
+.pabotsuitenames
+.idea/
+pabot_results/
+Results/
