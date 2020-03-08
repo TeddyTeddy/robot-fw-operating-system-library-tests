@@ -1,7 +1,8 @@
 *** Settings ***
 Documentation    Test cases for keywords in OS library
 Library          OperatingSystem
-Suite Setup         Suite Setup
+Variables        ../Libraries/common_variables.py
+Suite Setup      Suite Setup
 
 *** Variables ***
 ${PROJECT_FULL_PATH}
@@ -16,13 +17,17 @@ ${PATH_TO_CRAZY_MILO}
 ${TARGET_PATH}
 ${EMPTY_DIR} =  Empty/
 ${WAIT_FOR_ME}
+${SYSTEM}
 
 # To Run:
 # pabot --pythonpath Resources --noncritical failure-expected -d Results/ Tests/
 
 *** Keywords ***
 Suite Setup
-    ${project_full_path} =   Run     pwd
+    ${system}=    Evaluate    expression=platform.system()     modules=platform
+    Set Suite Variable      ${SYSTEM}       ${system}
+
+    ${project_full_path} =   Run     ${COMMANDS}[${SYSTEM}][get_project_full_path]
     Set Suite Variable  ${PROJECT_FULL_PATH}    ${project_full_path}
 
     ${artifacts_dir_full_path} =  Join Path   ${PROJECT_FULL_PATH}    ${ARTIFACTS_DIR}
@@ -166,21 +171,38 @@ Use "Count Directories In Directory"
     ...                 keyword. We pass project the project's full path to the keyword
     ...
 
+    # test
     ${dir_count} =  Count Directories In Directory    path=${PROJECT_FULL_PATH}
-    ${command} =    Catenate    ls -la ${PROJECT_FULL_PATH} | grep -v ^- | grep -v ^total | grep -v ^l | grep -v '\\.$' | wc -l  # counting in the hidden .idea/ folder as well; ls -la
+    # verify based on the platform
+    ${linux_command} =    Catenate    ls -la ${PROJECT_FULL_PATH} | grep -v ^- | grep -v ^total | grep -v ^l | grep -v '\\.$' | wc -l  # counting in the hidden .idea/ folder as well; ls -la
+    ${windows_command} =    Catenate  dir /ad   "${PROJECT_FULL_PATH}"  | findstr /v /c:Directory /v /c:Volume /v /c:File(s) /v /c:Dir(s) | findstr /v /e /c:. | find /c "DIR"
+    ${command} =    Run Keyword If  $SYSTEM=='Linux'      Set Variable    ${linux_command}
+    ...             ELSE IF         $SYSTEM=='Windows'    Set Variable    ${windows_command}
+    ...             ELSE            Fail    msg=Operating System Not Recognized
     ${expected_dir_count} =     Run  ${command}
     Should Be Equal As Integers     ${dir_count}        ${expected_dir_count}       # counting in the hidden .idea/ folder as well; ls -la
 
-    # the use of pattern to look for both Resources/ and Results/ directories under ${PROJECT_FULL_PATH}
+    # test: the use of pattern to look for both Resources/ and Results/ directories under ${PROJECT_FULL_PATH}
     ${dir_count} =  Count Directories In Directory    path=${PROJECT_FULL_PATH}   pattern=[rR]*s
+    # verify based on the platform
     # https://stackoverflow.com/questions/28899349/find-lines-starting-with-one-specific-character-and-ending-with-another-one
-    ${command} =    Catenate    ls  ${PROJECT_FULL_PATH}     | grep '^R.*s$' | wc -l
+    ${linux_command} =      Catenate    ls  ${PROJECT_FULL_PATH}     | grep '^R.*s$' | wc -l
+    ${windows_command} =    Catenate    dir ${PROJECT_FULL_PATH}     /b /d | findstr /r /c:R.*s | find /v "" /c
+    ${command} =    Run Keyword If  $SYSTEM=='Linux'      Set Variable    ${linux_command}
+    ...             ELSE IF         $SYSTEM=='Windows'    Set Variable    ${windows_command}
+    ...             ELSE            Fail    msg=Operating System Not Recognized
     ${expected_dir_count} =     Run  ${command}
-    Should Be Equal As Integers     ${dir_count}        ${expected_dir_count}       # Resources/ and Results/
+    Should Be Equal As Integers     ${dir_count}        ${expected_dir_count}       # Results/
 
 Use "Count Files In Directory"
+    # test
     ${file_count} =  Count Files In Directory    path=${ARTIFACTS_DIR_FULL_PATH}
-    ${command} =    Catenate    ls -l ${ARTIFACTS_DIR_FULL_PATH} | grep -v ^d | grep -v ^total | grep -v ^l | wc -l
+    # verify based on the platform
+    ${linux_command} =    Catenate    ls -l ${ARTIFACTS_DIR_FULL_PATH} | grep -v ^d | grep -v ^total | grep -v ^l | wc -l
+    ${windows_command} =  Catenate    dir ${ARTIFACTS_DIR_FULL_PATH} /b /a-d | find /v "" /c
+    ${command} =    Run Keyword If  $SYSTEM=='Linux'      Set Variable    ${linux_command}
+    ...             ELSE IF         $SYSTEM=='Windows'    Set Variable    ${windows_command}
+    ...             ELSE            Fail    msg=Operating System Not Recognized
     ${expected_file_count} =    Run  ${command}
     Should Be Equal As Integers    ${file_count}    ${expected_file_count}
 
@@ -194,9 +216,14 @@ Use "Count Items In Directory"
     ...               drwxrwxr-x 2 hakan hakan 4096 helmi 27 10:12 EmptyFolder         <-- item
     ...               -rw-r--r-- 1 hakan hakan   13 helmi 27 14:15 example_1.txt       <-- item
     ...               -rw-r--r-- 1 hakan hakan   20 helmi 27 14:15 example_2.txt       <-- item
-
+    # test
     ${item_count} =     Count Items In Directory    path=${ARTIFACTS_DIR_FULL_PATH}
-    ${command} =        Catenate    ls  ${ARTIFACTS_DIR_FULL_PATH} | wc -l
+    # verify based on the platform
+    ${linux_command} =        Catenate    ls  ${ARTIFACTS_DIR_FULL_PATH} | wc -l
+    ${windows_command} =      Catenate    dir ${ARTIFACTS_DIR_FULL_PATH} /b | find /v "" /c
+    ${command} =    Run Keyword If  $SYSTEM=='Linux'      Set Variable    ${linux_command}
+    ...             ELSE IF         $SYSTEM=='Windows'    Set Variable    ${windows_command}
+    ...             ELSE            Fail    msg=Operating System Not Recognized
     ${expected_number_of_items} =    Run     ${command}
     Should Be Equal As Integers      ${expected_number_of_items}    ${item_count}
 
@@ -503,22 +530,23 @@ Use "Set Modified Time"
     # If mtime is a number, or a string that can be converted to a number,
     # it is interpreted as seconds since the UNIX epoch (1970-01-01 00:00:00 UTC).
     Set Modified Time   path=${full_path_to_file_1}     mtime=0
-    set modified time   path=${full_path_to_file_2}     mtime=1970-01-01 00:00:00
+    # TODO: This one fails on windows, i donno why?
+    Set Modified Time   path=${full_path_to_file_2}     mtime=1970-01-01 00:00:00  # ValueError: Invalid time format
 
     # test
     # If mtime is a timestamp, that time will be used. Valid timestamp formats are:
     # YYYY-MM-DD hh:mm:ss and YYYYMMDD hhmmss
-    set modified time  path=${full_path_to_file_3}      mtime=2023-12-04 12:12:12
+    Set Modified Time  path=${full_path_to_file_3}      mtime=2023-12-04 12:12:12
 
     # test: If mtime is equal to NOW, the current local time is used
-    set modified time  path=${full_path_to_file_4}      mtime=NOW + 1 day
+    Set Modified Time  path=${full_path_to_file_4}      mtime=NOW + 1 day
 
     # test: If mtime is equal to UTC, the current time in UTC is used.
-    set modified time  path=${full_path_to_file_5}      mtime=UTC + 1 day
+    Set Modified Time  path=${full_path_to_file_5}      mtime=UTC + 1 day
 
     # test: If mtime is in the format like NOW - 1 day or UTC + 1 hour 30 min,
     # the current local/UTC time plus/minus the time specified with the time string is used.
-    set modified time  path=${full_path_to_file_6}      mtime=UTC + 1h 2min 3s
+    Set Modified Time  path=${full_path_to_file_6}      mtime=UTC + 1h 2min 3s
 
 Use "Should Exist"
     # The path can be given as an exact path
@@ -577,7 +605,7 @@ Use "Split Path"
     # ${path3} = 'def' & ${d2} = 'ghi'
 
 Use "Wait Until Created"
-    Wait Until Created      path=${WAIT_FOR_ME}     timeout=1 minute
+    Wait Until Created      path=${WAIT_FOR_ME}     timeout=15 seconds
 
 Use "Wait Until Removed"
-    Wait Until Removed      path=${WAIT_FOR_ME}     timeout=1 minute
+    Wait Until Removed      path=${WAIT_FOR_ME}     timeout=15 seconds

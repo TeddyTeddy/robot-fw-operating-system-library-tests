@@ -1,6 +1,7 @@
 *** Settings ***
 Documentation    This Suite will create & delete directories under Artifacts folder
 Library          OperatingSystem
+Variables        ../Libraries/common_variables.py
 Suite Setup      Suite Setup
 
 *** Variables ***
@@ -8,10 +9,14 @@ ${PROJECT_FULL_PATH}
 ${WAIT_FOR_ME}
 ${DELETE_ME}
 ${ARTIFACTS_DIR} =   Artifacts/
+${SYSTEM}
 
 *** Keywords ***
 Suite Setup
-    ${project_full_path} =   Run     pwd
+    ${system}=    Evaluate    expression=platform.system()     modules=platform
+    Set Suite Variable      ${SYSTEM}       ${system}
+
+    ${project_full_path} =   Run     ${COMMANDS}[${SYSTEM}][get_project_full_path]
     Set Suite Variable  ${PROJECT_FULL_PATH}    ${project_full_path}
 
     ${artifacts_dir_full_path} =  Join Path   ${PROJECT_FULL_PATH}    ${ARTIFACTS_DIR}
