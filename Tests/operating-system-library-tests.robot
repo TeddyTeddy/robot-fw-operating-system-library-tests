@@ -439,6 +439,9 @@ Use "Move File"
     # test
     Move File    source=${path_to_crazy_milo_copy}       destination=${dest}
 
+    # verify
+    File Should Not Exist   path=${path_to_crazy_milo_copy}
+
 Use "Move Files"
     # setup
     ${path_to_files} =      Join Path      ${PROJECT_FULL_PATH}        Artifacts${/}Trash${/}Copy${/}Here
@@ -448,18 +451,31 @@ Use "Move Files"
     # test
     Move Files      @{files}      ${target_path}
 
+    # verify
+    FOR     ${file}     IN     @{files}
+        File Should Not Exist   ${file}
+    END
+
 Use "Normalize Path"
-    ${path1} = 	Normalize Path 	abc/
-    ${path2} = 	Normalize Path 	abc/../def
-    ${path3} = 	Normalize Path 	abc/./def//ghi
-    ${path4} = 	Normalize Path 	~/robot/stuf
+    ${path1} = 	Normalize Path 	abc/            # abc
+    ${path2} = 	Normalize Path 	abc/../def      # def
+    ${path3} = 	Normalize Path 	abc/./def//ghi  # abc/def/ghi
+    ${path4} = 	Normalize Path 	~/robot/stuf    # /home/hakan/robot/stuf
 
 Use "Remove Environment Variable"
+    # test
     Remove Environment Variable     ENV_VAR     ENV_VAR2
+    # verify
+    Environment Variable Should Not Be Set      ENV_VAR
+    Environment Variable Should Not Be Set      ENV_VAR2
 
 Use "Remove File"
+    # setup
     ${full_path_to_file} =   Join Path      ${PROJECT_FULL_PATH}        Artifacts${/}Trash${/}CrazyMilo(Copy).jpeg
+    # test
     Remove File   ${full_path_to_file}
+    # verify
+    File Should Not Exist   path=${full_path_to_file}
 
 Use "Remove Files"
     # setup
@@ -469,12 +485,20 @@ Use "Remove Files"
     # test
     Remove Files   @{files}
 
-Use "Run" : To Execute A Bash Script To Remove A Given Folder
+    # verify
+    FOR     ${file}     IN      @{files}
+        File Should Not Exist   path=${file}
+    END
+
+Use "Run" : To Execute A Script To Remove A Given Folder
     # setup
     ${full_path_to_folder} =       Join Path      ${PROJECT_FULL_PATH}        Artifacts${/}Trash${/}Copy2
-    ${full_path_to_batch_file} =   Join Path      ${PROJECT_FULL_PATH}        Artifacts${/}delete_given_folder.sh
-    ${command} =    Catenate       ${full_path_to_batch_file}   ${full_path_to_folder}
-
+    ${full_path_to_sh_file} =   Join Path      ${PROJECT_FULL_PATH}        Artifacts${/}delete_given_folder.sh
+    ${linux_command} =    Catenate     ${full_path_to_sh_file}       ${full_path_to_folder}
+    ${windows_command} =   Set Variable     Set Me On Windows Side
+    ${command} =    Run Keyword If  $SYSTEM=='Linux'      Set Variable    ${linux_command}
+    ...             ELSE IF         $SYSTEM=='Windows'    Set Variable    ${windows_command}
+    ...             ELSE            Fail    msg=Operating System Not Recognized
     # test
     Directory Should Exist          ${full_path_to_folder}
     Run     ${command}
@@ -484,8 +508,12 @@ Use "Run and Return Rc"
     # note that in the previous test case, Artifacts${/}Trash${/}Copy2 folder already removed
     # setup
     ${full_path_to_folder} =       Join Path      ${PROJECT_FULL_PATH}        Artifacts${/}Trash${/}Copy2
-    ${full_path_to_batch_file} =   Join Path      ${PROJECT_FULL_PATH}        Artifacts${/}delete_given_folder.sh
-    ${command} =    Catenate       ${full_path_to_batch_file}   ${full_path_to_folder}
+    ${full_path_to_sh_file} =   Join Path      ${PROJECT_FULL_PATH}        Artifacts${/}delete_given_folder.sh
+    ${linux_command} =    Catenate       ${full_path_to_sh_file}   ${full_path_to_folder}
+    ${windows_command} =   Set Variable     Set Me On Windows Side
+    ${command} =    Run Keyword If  $SYSTEM=='Linux'      Set Variable    ${linux_command}
+    ...             ELSE IF         $SYSTEM=='Windows'    Set Variable    ${windows_command}
+    ...             ELSE            Fail    msg=Operating System Not Recognized
 
     # test
     Directory Should Not Exist      ${full_path_to_folder}
@@ -493,16 +521,22 @@ Use "Run and Return Rc"
 
     # setup
     ${wrong_full_path_to_folder} =  Join Path      ${PROJECT_FULL_PATH}        Artifacts${/}Trash${/}DoesNotExist
-    ${command} =    Catenate       rmdir   ${wrong_full_path_to_folder}
-
+    ${linux_command} =    Catenate       rmdir   ${wrong_full_path_to_folder}
+    ${windows_command} =   Set Variable     Set Me On Windows Side
+    ${command} =    Run Keyword If  $SYSTEM=='Linux'      Set Variable    ${linux_command}
+    ...             ELSE IF         $SYSTEM=='Windows'    Set Variable    ${windows_command}
+    ...             ELSE            Fail    msg=Operating System Not Recognized
     # test
-    ${rc} =     Run And Return Rc   ${command}        # rc is 1
+    ${rc} =     Run And Return Rc   ${command}        # rc is 1 in Linux
 
 Use "Run And Return Rc And Output"
     # setup
     ${wrong_full_path_to_folder} =  Join Path      ${PROJECT_FULL_PATH}        Artifacts${/}Trash${/}DoesNotExist
-    ${command} =    Catenate       rmdir   ${wrong_full_path_to_folder}
-
+    ${linux_command} =    Catenate       rmdir   ${wrong_full_path_to_folder}
+    ${windows_command} =   Set Variable     Set Me On Windows Side
+    ${command} =    Run Keyword If  $SYSTEM=='Linux'      Set Variable    ${linux_command}
+    ...             ELSE IF         $SYSTEM=='Windows'    Set Variable    ${windows_command}
+    ...             ELSE            Fail    msg=Operating System Not Recognized
     # test
     # rc is 1
     # ${output} = rmdir: failed to remove '/home/hakan/Python/Robot/robot-fw-operating-system-library-tests/Artifacts/Trash/DoesNotExist': No such file or directory
@@ -510,12 +544,13 @@ Use "Run And Return Rc And Output"
 
 Use "Set Environment Variable"
     # test
-    ${expected} =   set variable  Value
+    ${expected} =   Set Variable  Value
 
-    # verification
+    # test
     Set Environment Variable    ENV_VAR     ${expected}
+    # verify
     ${observed} =   Get Environment Variable    ENV_VAR
-    should be equal     ${expected}     ${observed}
+    Should Be Equal     ${expected}     ${observed}
 
 Use "Set Modified Time"
     # setup
@@ -550,35 +585,35 @@ Use "Set Modified Time"
 
 Use "Should Exist"
     # The path can be given as an exact path
-    should exist  path=${PATH_TO_TRASH}
-    run keyword and ignore error  should exist  path=/non/existing/path
-    should exist  path=${PATH_TO_CRAZY_MILO}
-    ${full_path_to_non_existing_file} =   join path  ${PATH_TO_TRASH}   none_existing_file.txt
-    run keyword and ignore error  should exist  ${full_path_to_non_existing_file}
+    Should Exist  path=${PATH_TO_TRASH}
+    Run Keyword And Ignore Error  Should Exist  path=/non/existing/path
+    Should Exist  path=${PATH_TO_CRAZY_MILO}
+    ${full_path_to_non_existing_file} =   Join Path  ${PATH_TO_TRASH}   none_existing_file.txt
+    Run Keyword And Ignore Error  Should Exist  ${full_path_to_non_existing_file}
 
     # The path can be given as a glob pattern.
-    ${globby_path} =  join path  ${PATH_TO_TRASH}   file_?.txt
-    should exist  ${globby_path}
-    ${globby_path} =    join path  ${PROJECT_FULL_PATH}     A*s
-    should exist  ${globby_path}
-    ${globby_path} =    join path  ${PROJECT_FULL_PATH}     non_ex?st?ng_path
-    run keyword and ignore error  should exist  ${globby_path}
+    ${globby_path} =  Join Path  ${PATH_TO_TRASH}   file_?.txt
+    Should Exist  ${globby_path}
+    ${globby_path} =    Join Path  ${PROJECT_FULL_PATH}     A*s
+    Should Exist  ${globby_path}
+    ${globby_path} =    Join Path  ${PROJECT_FULL_PATH}     non_ex?st?ng_path
+    Run Keyword And Ignore Error  Should Exist  ${globby_path}
 
 Use "Should Not Exist"
     # The path can be given as an exact path
-    run keyword and ignore error  should not exist  path=${PATH_TO_TRASH}
-    should not exist  path=/non/existing/path
-    run keyword and ignore error  should not exist  path=${PATH_TO_CRAZY_MILO}
-    ${full_path_to_non_existing_file} =   join path  ${PATH_TO_TRASH}   none_existing_file.txt
-    should not exist  ${full_path_to_non_existing_file}
+    Run Keyword And Ignore Error  Should Not Exist  path=${PATH_TO_TRASH}
+    Should Not Exist  path=/non/existing/path
+    Run Keyword And Ignore Error  Should Not Exist  path=${PATH_TO_CRAZY_MILO}
+    ${full_path_to_non_existing_file} =   Join Path  ${PATH_TO_TRASH}   none_existing_file.txt
+    Should Not Exist  ${full_path_to_non_existing_file}
 
     # The path can be given as a glob pattern.
-    ${globby_path} =  join path  ${PATH_TO_TRASH}   bad_globbing_?.txt
-    should not exist  ${globby_path}
-    ${globby_path} =    join path  ${PROJECT_FULL_PATH}     A*s
-    run keyword and ignore error  should not exist  ${globby_path}
-    ${globby_path} =    join path  ${PROJECT_FULL_PATH}     non_ex?st?ng_path
-    should not exist  ${globby_path}
+    ${globby_path} =  Join Path  ${PATH_TO_TRASH}   bad_globbing_?.txt
+    Should Not Exist  ${globby_path}
+    ${globby_path} =    Join Path  ${PROJECT_FULL_PATH}     A*s
+    Run Keyword And Ignore Error  Should Not Exist  ${globby_path}
+    ${globby_path} =    Join Path  ${PROJECT_FULL_PATH}     non_ex?st?ng_path
+    Should Not Exist  ${globby_path}
 
 Use "Split Extention"
     ${path}     ${ext} = 	Split Extension 	file.extension
