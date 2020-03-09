@@ -15,3 +15,4 @@ predeactivate
 premkproject
 premkvirtualenv
 prermvirtualenv
+Libraries/__pycache__/
