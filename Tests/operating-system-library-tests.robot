@@ -495,7 +495,8 @@ Use "Run" : To Execute A Script To Remove A Given Folder
     ${full_path_to_folder} =       Join Path      ${PROJECT_FULL_PATH}        Artifacts${/}Trash${/}Copy2
     ${full_path_to_sh_file} =   Join Path      ${PROJECT_FULL_PATH}        Artifacts${/}delete_given_folder.sh
     ${linux_command} =    Catenate     ${full_path_to_sh_file}       ${full_path_to_folder}
-    ${windows_command} =   Set Variable     Set Me On Windows Side
+    ${full_path_to_bat_file} =  Join Path   ${PROJECT_FULL_PATH}    Artifacts${/}delete_given_folder.bat
+    ${windows_command} =   Catenate     ${full_path_to_bat_file}    ${full_path_to_folder}
     ${command} =    Run Keyword If  $SYSTEM=='Linux'      Set Variable    ${linux_command}
     ...             ELSE IF         $SYSTEM=='Windows'    Set Variable    ${windows_command}
     ...             ELSE            Fail    msg=Operating System Not Recognized
@@ -510,37 +511,40 @@ Use "Run and Return Rc"
     ${full_path_to_folder} =       Join Path      ${PROJECT_FULL_PATH}        Artifacts${/}Trash${/}Copy2
     ${full_path_to_sh_file} =   Join Path      ${PROJECT_FULL_PATH}        Artifacts${/}delete_given_folder.sh
     ${linux_command} =    Catenate       ${full_path_to_sh_file}   ${full_path_to_folder}
-    ${windows_command} =   Set Variable     Set Me On Windows Side
+    ${full_path_to_bat_file} =  Join Path   ${PROJECT_FULL_PATH}    Artifacts${/}delete_given_folder.bat
+    ${windows_command} =   Catenate     ${full_path_to_bat_file}    ${full_path_to_folder}
     ${command} =    Run Keyword If  $SYSTEM=='Linux'      Set Variable    ${linux_command}
     ...             ELSE IF         $SYSTEM=='Windows'    Set Variable    ${windows_command}
     ...             ELSE            Fail    msg=Operating System Not Recognized
 
     # test
     Directory Should Not Exist      ${full_path_to_folder}
-    ${rc} =     Run And Return Rc     ${command}        # rc is 0
+    ${rc} =     Run And Return Rc     ${command}        # rc is 0 in linux, and is 2 on windows
 
     # setup
     ${wrong_full_path_to_folder} =  Join Path      ${PROJECT_FULL_PATH}        Artifacts${/}Trash${/}DoesNotExist
     ${linux_command} =    Catenate       rmdir   ${wrong_full_path_to_folder}
-    ${windows_command} =   Set Variable     Set Me On Windows Side
+    ${full_path_to_bat_file} =  Join Path   ${PROJECT_FULL_PATH}    Artifacts${/}delete_given_folder.bat
+    ${windows_command} =   Catenate     ${full_path_to_bat_file}    ${wrong_full_path_to_folder}
     ${command} =    Run Keyword If  $SYSTEM=='Linux'      Set Variable    ${linux_command}
     ...             ELSE IF         $SYSTEM=='Windows'    Set Variable    ${windows_command}
     ...             ELSE            Fail    msg=Operating System Not Recognized
     # test
-    ${rc} =     Run And Return Rc   ${command}        # rc is 1 in Linux
+    ${rc} =     Run And Return Rc   ${command}        # rc is 1 in Linux, 2 on windows
 
 Use "Run And Return Rc And Output"
     # setup
     ${wrong_full_path_to_folder} =  Join Path      ${PROJECT_FULL_PATH}        Artifacts${/}Trash${/}DoesNotExist
     ${linux_command} =    Catenate       rmdir   ${wrong_full_path_to_folder}
-    ${windows_command} =   Set Variable     Set Me On Windows Side
+    ${full_path_to_bat_file} =  Join Path   ${PROJECT_FULL_PATH}    Artifacts${/}delete_given_folder.bat
+    ${windows_command} =   Catenate     ${full_path_to_bat_file}    ${wrong_full_path_to_folder}
     ${command} =    Run Keyword If  $SYSTEM=='Linux'      Set Variable    ${linux_command}
     ...             ELSE IF         $SYSTEM=='Windows'    Set Variable    ${windows_command}
     ...             ELSE            Fail    msg=Operating System Not Recognized
     # test
     # rc is 1
     # ${output} = rmdir: failed to remove '/home/hakan/Python/Robot/robot-fw-operating-system-library-tests/Artifacts/Trash/DoesNotExist': No such file or directory
-    ${rc}  ${output} =     run and return rc and output  ${command}
+    ${rc}  ${output} =     run and return rc and output  ${command}  # rc is 2 on windows
 
 Use "Set Environment Variable"
     # test
